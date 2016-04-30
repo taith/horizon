@@ -83,10 +83,7 @@ class StatsTab(tabs.Tab):
 
     
     def get_context_data(self, request):
-        context = {}
-        meter_list = ceilometer.meter_list(self.request)
 
-        meters = []
         meter_types = [
             ("Compute", [
                 {"name": "cpu", "unit": "ns", "type": "cumulative"},
@@ -123,19 +120,25 @@ class StatsTab(tabs.Tab):
 
         # grab different resources for metrics,
         # and associate with the right type
-        meters = ceilometer.meter_list(self.request)
-        resources = {}
-        for meter in meters:
-            # group resources by meter names
-            if meter.type=='delta' or meter.type=='cumulative':
-                if meter.name not in resources:
-                    resources[meter.name] = []
-                if meter.resource_id not in resources[meter.name]:
-                    resources[meter.name].append(meter.resource_id)
+        meters = ceilometer.Meters(request)
+        # Remove gauge type data.
+      #  meters = filter(lambda m: m.type == "cumulative", meters)
 
-        context = {'meters': meter_types, 'resources': resources}
+        # Remove meters with the same name.
+#        cached_meter_names = []
+ #       cached_meters = []
+  #      for m in meters:
+   #         if m.name not in cached_meter_names:
+    #            cached_meter_names.append(m.name)
+     #           cached_meters.append(m)
+
+        context = {
+            'meters': meters,
+            'meters_unique_names': meters.list_nova(),
+        }
         context.update(csrf(request))
         return context
+
 
 class CeilometerOverviewTabs(tabs.TabGroup):
     slug = "ceilometer_overview"

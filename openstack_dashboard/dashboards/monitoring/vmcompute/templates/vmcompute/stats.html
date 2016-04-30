@@ -43,15 +43,14 @@
 		<span style="float:left;">
 		        <label for="meter" style="display:inline">{% trans "Metric" %}:&nbsp;</label>
 			<select name="meter" id="meter" class="span3 example">
-                            {% for group in meters %}
-                                <optgroup label="{{group.0}}">
-                                {% for meter in group.1 %}
+                            
+                                
+                                {% for meter in meters_unique_names %}
 		        		<option value="{{meter.name}}" data-unit="{{meter.unit}}" data-type="{{meter.type}}">
 				            {{meter.name}}
 				        </option>
                                 {% endfor %}
-                                </optgroup>
-                            {% endfor %}
+                              
 			</select>
        			<label for="resource" style="display:inline">{% trans "Resource" %}:&nbsp;</label>
 			<select name="resource" id="resource" class="span3 example">
@@ -82,7 +81,6 @@
 <div id="chart_container"></div>
 
 <form id="svgform" name="svgform" method="POST" action="{%url "horizon:monitoring:vmcompute:export" %}">
-	{% csrf_token %}
 	<input type="hidden" id="svgdata" name="svgdata" value="" />
 </form>
 <script type="text/javascript">
@@ -287,12 +285,12 @@
           $("#date_to").hide();
         }).data('datepicker');
 	// master resources list
-        {% for meter_name, resources_by_name in resources.items %}
-		resources["{{meter_name}}"] = new Array();
-		{% for resource in resources_by_name %}
-			resources["{{meter_name}}"].push("{{resource}}");
-                {% endfor %}
-        {% endfor %}
+        // {% for meter_name, resources_by_name in resources.items %}
+	//	resources["{{meter_name}}"] = new Array();
+	//	{% for resource in resources_by_name %}
+	//		resources["{{meter_name}}"].push("{{resource}}");
+        //        {% endfor %}
+        // {% endfor %}
         $(".action_display_chart").click(function()
         {
                 loadChartData();
