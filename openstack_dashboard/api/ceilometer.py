@@ -283,7 +283,7 @@ class GlobalNetworkTrafficUsage(base.APIDictWrapper):
 
 
 class GlobalCpuUsage(base.APIDictWrapper):
-    _attrs = ["tenant", "user", "resource", "cpu"]
+    _attrs = ["tenant", "user", "resource", "cpu", "cpu_util", "vcpus", "memory", "memory_usage"]
 
 
 class GlobalNetworkUsage(base.APIDictWrapper):
@@ -340,7 +340,11 @@ def statistic_list(request, meter_name, query=None, period=None):
 
 
 def global_cpu_usage(request):
-    result_list = global_usage(request, ["cpu"])
+    result_list = global_usage(request, ["cpu",
+                                         "cpu_util",
+                                         "vcpus",
+                                         "memory",
+                                         "memory.usage"])
     return [GlobalCpuUsage(u) for u in result_list]
 
 

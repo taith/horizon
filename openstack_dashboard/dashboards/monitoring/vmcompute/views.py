@@ -135,7 +135,7 @@ class SamplesView(View):
 
         # output csv
         headers = ['date', 'value']
-        response = HttpResponse(mimetype='text/csv')
+        response = HttpResponse(content_type='text/csv')
         writer = csv.writer(response)
         writer.writerow(headers)
 
@@ -157,7 +157,7 @@ class ExportView(View):
 
         # output to pdf
         pdf = renderPDF.drawToString(drawing)
-        response = HttpResponse(mimetype='application/pdf')
+        response = HttpResponse(content_type='application/pdf')
         response["Content-Disposition"]= "attachment; filename=chart.pdf"
         response.write(pdf) 
 

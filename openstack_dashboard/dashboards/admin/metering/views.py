@@ -1,174 +1,164 @@
-# Licensed under the Apache License, Version 2.0 (the "License"); you may
-# not use this file except in compliance with the License. You may obtain
-# a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-# License for the specific language governing permissions and limitations
-# under the License.
-
-import json
 import logging
+import csv
+from datetime import datetime, timedelta
 
-from django.core.urlresolvers import reverse_lazy
-from django.http import HttpResponse  # noqa
-from django.utils.translation import ugettext_lazy as _
-import django.views
-
-from horizon import exceptions
-from horizon import forms
 from horizon import tabs
-from horizon.utils import csvbase
+from django.http import HttpResponse
+from django.views.generic import View
 
+from .tabs import CeilometerOverviewTabs
 from openstack_dashboard.api import ceilometer
 
-from openstack_dashboard.dashboards.admin.metering import forms as \
-    metering_forms
-from openstack_dashboard.dashboards.admin.metering import tabs as \
-    metering_tabs
-from openstack_dashboard.utils import metering as metering_utils
-
+from svglib.svglib import SvgRenderer
+from reportlab.graphics import renderPDF
+import xml.dom.minidom
+import itertools
+import operator
 
 LOG = logging.getLogger(__name__)
 
 
 class IndexView(tabs.TabbedTableView):
-    tab_group_class = metering_tabs.CeilometerOverviewTabs
-    template_name = 'admin/metering/index.html'
-    page_title = _("Resources Usage Overview")
+    tab_group_class = CeilometerOverviewTabs
+    template_name = 'monitoring/vmcompute/index.html'
 
+# convert all items in list to hour level
+def to_hours(item):
+    date_obj = datetime.strptime(item[0], '%Y-%m-%dT%H:%M:%S')
+    new_date_str = date_obj.strftime("%Y-%m-%dT%H:00:00")
+    return (new_date_str, item[1])
 
-class CreateUsageReport(forms.ModalFormView):
-    form_class = metering_forms.UsageReportForm
-    template_name = 'admin/metering/daily.html'
-    success_url = reverse_lazy('horizon:admin:metering:index')
-    page_title = _("Modify Usage Report Parameters")
+# convert all items in list to day level
+def to_days(item):
+    date_obj = datetime.strptime(item[0], '%Y-%m-%dT%H:%M:%S')
+    new_date_str = date_obj.strftime("%Y-%m-%dT00:00:00")
+    return (new_date_str, item[1])
 
-
-class SamplesView(django.views.generic.TemplateView):
-    def get(self, request, *args, **kwargs):
-        meter = request.GET.get('meter', None)
-        if not meter:
-            return HttpResponse(json.dumps({}),
-                                content_type='application/json')
-
-        meter_name = meter.replace(".", "_")
-        date_options = request.GET.get('date_options', None)
-        date_from = request.GET.get('date_from', None)
-        date_to = request.GET.get('date_to', None)
-        stats_attr = request.GET.get('stats_attr', 'avg')
-        group_by = request.GET.get('group_by', None)
-
-        try:
-            date_from, date_to = metering_utils.calc_date_args(date_from,
-                                                               date_to,
-                                                               date_options)
-        except Exception:
-            exceptions.handle(self.request, _('Dates cannot be recognized.'))
-
-        if group_by == 'project':
-            query = metering_utils.ProjectAggregatesQuery(request,
-                                                          date_from,
-                                                          date_to,
-                                                          3600 * 24)
+# given a set of metrics with same key, group them and calc average
+def reduce_metrics(samples):
+    new_samples = []
+    for key, items in itertools.groupby(samples, operator.itemgetter(0)):
+        grouped_items = []
+        for item in items:
+            grouped_items.append(item[1])
+        item_len = len(grouped_items)
+        if item_len>0:
+            avg = reduce(lambda x, y: x+y, grouped_items)/item_len
         else:
-            query = metering_utils.MeterQuery(request, date_from,
-                                              date_to, 3600 * 24)
+            avg = 0
 
-        resources, unit = query.query(meter)
-        series = metering_utils.series_for_meter(request, resources,
-                                                 group_by, meter,
-                                                 meter_name, stats_attr, unit)
+        new_samples.append([key, avg])
+    return new_samples
 
-        series = metering_utils.normalize_series_by_unit(series)
-        ret = {'series': series, 'settings': {}}
-        return HttpResponse(json.dumps(ret), content_type='application/json')
+class SamplesView(View):
 
+    # converts string to date
+    def _to_iso_time(self, date_str):
+        date_object = datetime.strptime(date_str, '%m/%d/%Y %H:%M:%S')
+        return date_object.isoformat(' ')
 
-class CsvReportView(django.views.generic.View):
-    def get(self, request, **response_kwargs):
-        render_class = ReportCsvRenderer
-        response_kwargs.setdefault("filename", "usage.csv")
-        context = {'usage': load_report_data(request)}
-        resp = render_class(request=request,
-                            template=None,
-                            context=context,
-                            content_type='csv',
-                            **response_kwargs)
-        return resp
+    # grab the latest sample value before that date
+    def _get_previous_val(self, source, resource, limit_date):
+        # give 1 hour of margin to grab latest sample
+        date_object = datetime.strptime(limit_date, '%Y-%m-%d %H:%M:%S')
+        edge_date = date_object - timedelta(hours=1)
+        edge_date_str = edge_date.strftime('%Y-%m-%d %H:%M:%S')
 
+        query = [
+            {'field':'timestamp', 'op':'ge', 'value':edge_date_str},
+            {'field':'timestamp', 'op':'lt', 'value':limit_date},
+            {'field':'resource', 'op':'eq', 'value':resource}
+        ]
+        sample_list = ceilometer.sample_list(self.request, source, query)
+        if len(sample_list)>0:
+            # grab latest item
+            last = sample_list[-1]
+            return last.counter_volume
+        else:
+            return 0
 
-class ReportCsvRenderer(csvbase.BaseCsvResponse):
+    def get(self, request, *args, **kwargs):
+        source = request.GET.get('sample', '')
+        date_from = request.GET.get('from', '')
+        date_to = request.GET.get('to', '')
+        resource = request.GET.get('resource', '')
+        query = []
+        rows = []
 
-    columns = [_("Project Name"), _("Meter"), _("Description"),
-               _("Service"), _("Time"), _("Value (Avg)"), _("Unit")]
+        if date_from:
+            date_from = self._to_iso_time(date_from+' 00:00:00')
+            query.append({'field':'timestamp', 'op':'ge', 'value':date_from})
 
-    def get_row_data(self):
+        if date_to:
+            date_to = self._to_iso_time(date_to+" 23:59:59")
+            query.append({'field':'timestamp', 'op':'le', 'value':date_to})
 
-        for p in self.context['usage'].values():
-            for u in p:
-                yield (u["project"],
-                       u["meter"],
-                       u["description"],
-                       u["service"],
-                       u["time"],
-                       u["value"],
-                       u["unit"])
+        samples = []
+        meter_type = ""
+        if source and resource:
+            query.append({'field':'resource', 'op':'eq', 'value':resource})
+            sample_list = ceilometer.sample_list(self.request, source, query)
 
+            previous = self._get_previous_val(source, resource, date_from)
 
-def load_report_data(request):
-    meters = ceilometer.Meters(request)
-    services = {
-        _('Nova'): meters.list_nova(),
-        _('Neutron'): meters.list_neutron(),
-        _('Glance'): meters.list_glance(),
-        _('Cinder'): meters.list_cinder(),
-        _('Swift_meters'): meters.list_swift(),
-        _('Kwapi'): meters.list_kwapi(),
-        _('IPMI'): meters.list_ipmi(),
-    }
-    project_rows = {}
-    date_options = request.GET.get('date_options', 7)
-    date_from = request.GET.get('date_from')
-    date_to = request.GET.get('date_to')
-    try:
-        date_from, date_to = metering_utils.calc_date_args(date_from,
-                                                           date_to,
-                                                           date_options)
-    except Exception:
-        exceptions.handle(request, _('Dates cannot be recognized.'))
-    try:
-        project_aggregates = metering_utils.ProjectAggregatesQuery(request,
-                                                                   date_from,
-                                                                   date_to,
-                                                                   3600 * 24)
-    except Exception:
-        exceptions.handle(request,
-                          _('Unable to retrieve project list.'))
-    for meter in meters._cached_meters.values():
-        service = None
-        for name, m_list in services.items():
-            if meter in m_list:
-                service = name
-                break
-        res, unit = project_aggregates.query(meter.name)
-        for r in res:
-            values = r.get_meter(meter.name.replace(".", "_"))
-            if values:
-                for value in values:
-                    row = {"name": 'none',
-                           "project": r.id,
-                           "meter": meter.name,
-                           "description": meter.description,
-                           "service": service,
-                           "time": value._apiresource.period_end,
-                           "value": value._apiresource.avg,
-                           "unit": meter.unit}
-                    if r.id not in project_rows:
-                        project_rows[r.id] = [row]
-                    else:
-                        project_rows[r.id].append(row)
-    return project_rows
+            for sample_data in sample_list:
+                current_volume = sample_data.counter_volume
+
+                # if sample is cumulative, substract previous val
+                meter_type = sample_data.counter_type
+                if sample_data.counter_type=="cumulative":
+                    current_delta = current_volume - previous
+                    previous = current_volume
+                    if current_delta<0:
+                        current_delta = current_volume
+                else:
+                    current_delta = current_volume
+                samples.append([sample_data.timestamp[:19], current_delta])
+
+            # if requested period is too long, interpolate data, for cumulative metrics
+            if meter_type=="cumulative":
+                date_start_obj = datetime.strptime(date_from, "%Y-%m-%d %H:%M:%S")
+                date_end_obj = datetime.strptime(date_to, "%Y-%m-%d %H:%M:%S")
+                delta = (date_end_obj - date_start_obj).days
+
+                if delta>=365:
+                    samples = map(to_days, samples)
+                    samples = reduce_metrics(samples)
+                elif delta>=30:
+                    # reduce metrics to hours
+                    samples = map(to_hours, samples)
+                    samples = reduce_metrics(samples)
+            else:
+                # add measures of 0 for start and end 
+                samples.append([date_from.replace(" ", "T"), 0])
+                samples.append([date_to.replace(" ", "T"), 0])
+
+        # output csv
+        headers = ['date', 'value']
+        response = HttpResponse(mimetype='text/csv')
+        writer = csv.writer(response)
+        writer.writerow(headers)
+
+        for sample in samples:
+            writer.writerow(sample)
+
+        return response
+
+class ExportView(View):
+    def post(self, request, *args, **kwargs):
+        data = request.POST.get('svgdata', '')
+
+        # render svg
+        doc = xml.dom.minidom.parseString(data.encode( "utf-8" ))
+        svg = doc.documentElement
+        svgRenderer = SvgRenderer()
+        svgRenderer.render(svg)
+        drawing = svgRenderer.finish()
+
+        # output to pdf
+        pdf = renderPDF.drawToString(drawing)
+        response = HttpResponse(mimetype='application/pdf')
+        response["Content-Disposition"]= "attachment; filename=chart.pdf"
+        response.write(pdf) 
+
+        return response
