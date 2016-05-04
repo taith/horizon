@@ -4,7 +4,7 @@ import horizon
 from openstack_dashboard.dashboards.monitoring import dashboard
 
 class Vmcompute(horizon.Panel):
-    name = _("Vitual Machine Meter")
+    name = _("Virtual Machine Meter")
     slug = "vmcompute"
 
 

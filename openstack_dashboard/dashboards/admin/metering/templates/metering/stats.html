@@ -35,7 +35,30 @@
 }
 </style>
 
-<script>
+<script type="text/javascript">
+    (function(){
+      var init_ceilometer = function(){
+        var meters = [];
+        {% for m in meters %}
+          meters.push({
+            "name":  "{{ m.name }}",
+            "resource_id": "{{ m.resource_id }}",
+            "user_id": "{{ m.user_id }}",
+            "project_id": "{{ m.project_id }}",
+            "unit": "{{ m.unit }}",
+            "type": "{{ m.type }}"
+          });
+        {% endfor %}
+        horizon.ceilometer.getResources(meters);
+        horizon.ceilometer.updateResourceOptions();
+        horizon.ceilometer.loadChartData();
+      };
+      if (typeof horizon.ceilometer !== "undefined"){
+        init_ceilometer();
+      } else {
+        addHorizonLoadEvent(init_ceilometer);
+      }
+    }());
 </script>
 
 <div class="table_wrapper">
@@ -54,6 +77,7 @@
 			</select>
        			<label for="resource" style="display:inline">{% trans "Resource" %}:&nbsp;</label>
 			<select name="resource" id="resource" class="span3 example">
+                            <option value="">{% trans "Select a meter to load options." %}</option>
 			</select>
 			<label for="date_range_selectors" style="display:inline">{% trans "Period" %}:&nbsp;</label>
 			<select id="date_options" name="date_options">
@@ -74,7 +98,7 @@
 	        	<button type="button" id="action_display_chart" class="btn btn-small btn-search action_display_chart">{% trans "Refresh" %}</button>
 		</span>
 		<span style="float:right;">
-		        <button type="button" id="action_export_chart" class="btn btn-small btn-search action_export_chart">{% trans "Export chart to PDF" %}</button>
+		        <button type="button" id="action_export_chart" class="btn btn-small btn-search action_export_chart">{% trans "Export to PDF" %}</button>
 		</span>
 	</div>
 </div>
@@ -285,12 +309,12 @@
           $("#date_to").hide();
         }).data('datepicker');
 	// master resources list
-        // {% for meter_name, resources_by_name in resources.items %}
-	//	resources["{{meter_name}}"] = new Array();
-	//	{% for resource in resources_by_name %}
-	//		resources["{{meter_name}}"].push("{{resource}}");
-        //        {% endfor %}
-        // {% endfor %}
+         {% for meter_name, resources_by_name in resources.items %}
+		resources["{{meter_name}}"] = new Array();
+		{% for resource in resources_by_name %}
+			resources["{{meter_name}}"].push("{{resource}}");
+                {% endfor %}
+         {% endfor %}
         $(".action_display_chart").click(function()
         {
                 loadChartData();

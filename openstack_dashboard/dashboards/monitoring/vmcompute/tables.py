@@ -330,6 +330,10 @@ class CpuUsageTable(tables.DataTable):
                         verbose_name=_("CPU time"),
                         summation="sum",
                         sortable=True)
+    cpu_util = tables.Column("cpu_util", verbose_name=_("Average CPU (%)"), sortable=True)
+    vcpus = tables.Column("vcpus", verbose_name=_("Number of virtual CPUs"), sortable=True)
+    memory = tables.Column("memory", verbose_name=_("Memory (MB)"), sortable=True)
+    memory_usage = tables.Column("memory_usage", verbose_name=_("Memory Use (MB)"), sortable=True)
 
     def get_object_id(self, datum):
         return datum.tenant + datum.user + datum.resource
