@@ -2,36 +2,38 @@
 <style>
 .stats_selector
 {
-	min-width:100%;
+	min-width: 100%;
 }
 .stats_selector label, .stats_selector select, .stats_selector input
 {
-	font-size:11px;
+	font-size: 11px;
 }
 .stats_selector select
 {
-	height:25px;
+	height: 25px;
 }
 .stats_selector input
 {
-	width:75px;
+	width: 75px;
 }
 #meter
 {
-	width:150px;
+	width: 150px;
 }
 #resource
 {
-	width:250px;
+	width: 250px;
 }
 #date_options
 {
-	width:100px;
+	width: 100px;
 }
 #action_display_chart
 {
-	float:none;
-	margin-top:-10px;
+	float: none;
+}
+#action_display_chart:hover {
+	background_color: #3b5998;
 }
 </style>
 
@@ -40,8 +42,8 @@
 		<span style="float:left;">
 		        <label for="meter" style="display:inline">{% trans "Metric" %}:&nbsp;</label>
 			<select name="meter" id="meter" class="span3 example">
-                            {% for group in meters %}
-                                <optgroup label="{{group.0}}">
+                            {% for group in meters %}                            
+                                <optgroup label="Compute (Nova)">
                                 {% for meter in group.1 %}
 		        		<option value="{{meter.name}}" data-unit="{{meter.unit}}" data-type="{{meter.type}}">
 				            {{meter.name}}
@@ -72,11 +74,13 @@
 	        	<button type="button" id="action_display_chart" class="btn btn-small btn-search action_display_chart">{% trans "Refresh" %}</button>
 		</span>
 		<span style="float:right;">
-		        <button type="button" id="action_export_chart" class="btn btn-small btn-search action_export_chart">{% trans "Export to PDF" %}</button>
+		        <button type="button" id="action_export_chart" class="btn btn-small btn-search action_export_chart" style="margin-left: 0px;">{% trans "Export to PDF" %}</button>
 		</span>
 	</div>
 </div>
-<div id="chart_container"></div>
+<div id="chart_container">
+    <div style="padding-bottom: 20px;" class="clearfix"></div>
+</div>
 
 <form id="svgform" name="svgform" method="POST" action="{%url "horizon:monitoring:vmcompute:export" %}">
 	{% csrf_token %}

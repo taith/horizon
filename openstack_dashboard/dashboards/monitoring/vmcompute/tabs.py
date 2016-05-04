@@ -1,18 +1,3 @@
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
-
-# Copyright 2012 Canonical Ltd.
-#
-# Licensed under the Apache License, Version 2.0 (the "License"); you may
-# not use this file except in compliance with the License. You may obtain
-# a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-# License for the specific language governing permissions and limitations
-# under the License.
 import operator
 
 from django.utils.translation import ugettext_lazy as _
@@ -102,12 +87,12 @@ class StatsTab(tabs.Tab):
 
         meters = []
         meter_types = [
-            ("Compute", [
+            ("Compute (Nova)", [
                 {"name": "cpu", "unit": "ns", "type": "cumulative"},
-                {"name": "disk.read.requests", "unit": "requests",
-                         "type": "cumulative"},
-                {"name": "disk.read.bytes", "unit": "B",
-                         "type": "cumulative"},
+                {"name": "disk.read.requests", "unit": "requests", "type": "cumulative"},
+                {"name": "disk.read.bytes", "unit": "B", "type": "cumulative"},
+                {"name": "disk.write.bytes", "unit": "B", "type": "cumulative"},
+                {"name": "disk.write.requests", "unit": "requests", "type": "cumulative"}, 
                 {"name": "network.incoming.bytes", "unit": "B",
                          "type": "cumulative"},
                 {"name": "network.outgoing.bytes", "unit": "B",
@@ -115,29 +100,16 @@ class StatsTab(tabs.Tab):
                 {"name": "network.incoming.packets", "unit": "packets",
                          "type": "cumulative"},
                 {"name": "network.outgoing.packets", "unit": "packets",
-                         "type": "cumulative"}]),
-            ("Network", [
-                {"name": "network.create", "unit": "network", "type": "delta"},
-                {"name": "network.update", "unit": "network", "type": "delta"},
-                {"name": "subnet.create", "unit": "subnet", "type": "delta"},
-                {"name": "subnet.update", "unit": "subnet", "type": "delta"},
-                {"name": "port.create", "unit": "port", "type": "delta"},
-                {"name": "port.update", "unit": "port", "type": "delta"},
-                {"name": "router.create", "unit": "router", "type": "delta"},
-                {"name": "router.update", "unit": "router", "type": "delta"},
-                {"name": "ip.floating.create", "unit": "ip", "type": "delta"},
-                {"name": "ip.floating.update", "unit": "ip",
-                         "type": "delta"}]),
-            ("Object Storage", [
-                {"name": "storage.objects.incoming.bytes", "unit": "B",
-                         "type": "delta"},
-                {"name": "storage.objects.outgoing.bytes", "unit": "B",
-                         "type": "delta"}])
+                         "type": "cumulative"}])
         ]
 
         # grab different resources for metrics,
         # and associate with the right type
         meters = ceilometer.meter_list(self.request)
+        metersx = ceilometer.Meters(request)
+        if not metersx._ceilometer_meter_list:
+            msg = _("There are no meters defined yet.")
+            messages.warning(request, msg)
         resources = {}
         for meter in meters:
             # group resources by meter names
