@@ -150,18 +150,6 @@ class  DiskUsageTable(tables.DataTable):
         multi_select = False
 
 
-class CpuUsageFilterAction(tables.FilterAction):
-    def filter(self, table, tenants, filter_string):
-        q = filter_string.lower()
-
-        def comp(tenant):
-            if q in tenant.name.lower():
-                return True
-            return False
-
-        return filter(comp, tenants)
-
-
 class NetworkTrafficUsageFilterAction(tables.FilterAction):
     def filter(self, table, tenants, filter_string):
         q = filter_string.lower()
@@ -270,7 +258,7 @@ class NetworkUsageTable(tables.DataTable):
         multi_select = False
 
 
-class ObjectStoreUsageFilterAction(tables.FilterAction):
+class CpuUsageFilterAction(tables.FilterAction):
     def filter(self, table, tenants, filter_string):
         q = filter_string.lower()
 
@@ -280,37 +268,6 @@ class ObjectStoreUsageFilterAction(tables.FilterAction):
             return False
 
         return filter(comp, tenants)
-
-
-class ObjectStoreUsageTable(tables.DataTable):
-    tenant = tables.Column("tenant", verbose_name=_("Tenant"))
-    user = tables.Column("user", verbose_name=_("User"), sortable=True)
-    resource = tables.Column("resource",
-                             verbose_name=_("Resource"),
-                             sortable=True)
-    storage_incoming_bytes = tables.Column(get_bytes("storage_objects_incoming_bytes"),
-                           verbose_name=_("Object Storage Incoming Bytes"),
-                           summation="sum", sortable=True)
-    storage_outgoing_bytes = tables.Column(get_bytes("storage_objects_outgoing_bytes"),
-                            verbose_name=_("Object Storage Outgoing Bytes"),
-                            summation="sum", sortable=True)
-    storage_objects = tables.Column("storage_objects",
-                            verbose_name=_("Total Number of Objects"),
-                            summation="sum", sortable=True)
-    storage_objects_size = tables.Column(get_bytes("storage_objects_size"),
-                            verbose_name=_("Total Size of Objects "),
-                            summation="sum", sortable=True)
-
-    def get_object_id(self, datum):
-        return "%s%s%s" % (datum.tenant,
-                           datum.user,
-                           datum.resource)
-
-    class Meta:
-        name = "global_object_store_usage"
-        verbose_name = _("Global Object Store Usage")
-        table_actions = (ObjectStoreUsageFilterAction,)
-        multi_select = False
 
 
 def get_cpu_time(sample):
