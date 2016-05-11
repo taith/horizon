@@ -29,7 +29,6 @@ class StringWithPlusOperation(str):
         return None, None
 
 
-    # given a number and units, convert that to bytes
     def to_bytes(self, number, unit):
         if unit=="PB":
             bytes = number * (1024 * 1024 * 1024 * 1024 * 1024)
@@ -68,7 +67,6 @@ class StringWithPlusOperation(str):
         if unit_x == unit_y:
             return "%s%s" % (num_x + num_y, unit_x)
         else:
-            # convert both units to bytes 
             converted_num_x = self.to_bytes(num_x, unit_x)
             converted_num_y = self.to_bytes(num_y, unit_y)
 
@@ -83,7 +81,6 @@ class StringWithPlusOperationForTime(str):
         super(StringWithPlusOperationForTime, self).__init__(*args, **kwargs)
 
     def __radd__(self, another):
-        # convert to seconds, add them and convert again
         seconds1 = sum(int(x) * 60 ** i for i, x
                         in enumerate(reversed(self.split(":"))))
         if isinstance(another, (int, float)):
@@ -189,74 +186,6 @@ class NetworkTrafficUsageTable(tables.DataTable):
         verbose_name = _("Global Network Traffic Usage")
         table_actions = (NetworkTrafficUsageFilterAction,)
         multi_select = False
-
-class NetworkUsageFilterAction(tables.FilterAction):
-    def filter(self, table, tenants, filter_string):
-        q = filter_string.lower()
-
-        def comp(tenant):
-            if q in tenant.name.lower():
-                return True
-            return False
-
-        return filter(comp, tenants)
-
-
-class NetworkUsageTable(tables.DataTable):
-    tenant = tables.Column("tenant", verbose_name=_("Tenant"))
-    user = tables.Column("user", verbose_name=_("User"), sortable=True)
-    instance = tables.Column("resource",
-                             verbose_name=_("Resource"),
-                             sortable=True)
-    network_duration = tables.Column("network",
-                                   verbose_name=_("Network Duration"),
-                                   summation="sum",
-                                   sortable=True)
-    network_creation_requests = tables.Column("network_create",
-                            verbose_name=_("Network Creation Requests"),
-                            summation="sum", sortable=True)
-    subnet_duration = tables.Column("subnet",
-                            verbose_name=_("Subnet Duration"),
-                            summation="sum", sortable=True)
-    subnet_creation = tables.Column("subnet_create",
-                            verbose_name=_("Subnet Creation Requests"),
-                            summation="sum", sortable=True)
-    port_duration = tables.Column("port",
-                            verbose_name=_("Port Duration"),
-                            summation="sum", sortable=True)
-    port_creation = tables.Column("port_create",
-                            verbose_name=_("Port Creation Requests"),
-                            summation="sum", sortable=True)
-    router_duration = tables.Column("router",
-                            verbose_name=_("Router Duration"),
-                            summation="sum", sortable=True)
-    router_creation = tables.Column("router_create",
-                            verbose_name=_("Router Creation Requests"),
-                            summation="sum", sortable=True)
-    port_duration = tables.Column("port",
-                            verbose_name=_("Port Duration"),
-                            summation="sum", sortable=True)
-    port_creation = tables.Column("port_create",
-                            verbose_name=_("Port Creation Requests"),
-                            summation="sum", sortable=True)
-    ip_floating_duration = tables.Column("ip_floating",
-                            verbose_name=_("Floating IP Duration"),
-                            summation="sum", sortable=True)
-    ip_floating_creation = tables.Column("ip_floating_create",
-                            verbose_name=_("Floating IP Creation Requests"),
-                            summation="sum", sortable=True)
-
-    def get_object_id(self, datum):
-        return "%s%s%s" % (datum.tenant,
-                           datum.user,
-                           datum.resource)
-
-    class Meta:
-        name = "global_network_usage"
-        verbose_name = _("Global Network Usage")
-        table_actions=(NetworkUsageFilterAction,)
-        multi_select = False
-
 
 class CpuUsageFilterAction(tables.FilterAction):
     def filter(self, table, tenants, filter_string):

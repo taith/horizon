@@ -22,19 +22,16 @@ class IndexView(tabs.TabbedTableView):
     tab_group_class = CeilometerOverviewTabs
     template_name = 'monitoring/vmcompute/index.html'
 
-# convert all items in list to hour level
 def to_hours(item):
     date_obj = datetime.strptime(item[0], '%Y-%m-%dT%H:%M:%S')
     new_date_str = date_obj.strftime("%Y-%m-%dT%H:00:00")
     return (new_date_str, item[1])
 
-# convert all items in list to day level
 def to_days(item):
     date_obj = datetime.strptime(item[0], '%Y-%m-%dT%H:%M:%S')
     new_date_str = date_obj.strftime("%Y-%m-%dT00:00:00")
     return (new_date_str, item[1])
 
-# given a set of metrics with same key, group them and calc average
 def reduce_metrics(samples):
     new_samples = []
     for key, items in itertools.groupby(samples, operator.itemgetter(0)):
@@ -51,15 +48,12 @@ def reduce_metrics(samples):
     return new_samples
 
 class SamplesView(View):
-
-    # converts string to date
+    
     def _to_iso_time(self, date_str):
         date_object = datetime.strptime(date_str, '%m/%d/%Y %H:%M:%S')
         return date_object.isoformat(' ')
 
-    # grab the latest sample value before that date
     def _get_previous_val(self, source, resource, limit_date):
-        # give 1 hour of margin to grab latest sample
         date_object = datetime.strptime(limit_date, '%Y-%m-%d %H:%M:%S')
         edge_date = date_object - timedelta(hours=1)
         edge_date_str = edge_date.strftime('%Y-%m-%d %H:%M:%S')
@@ -71,7 +65,6 @@ class SamplesView(View):
         ]
         sample_list = ceilometer.sample_list(self.request, source, query)
         if len(sample_list)>0:
-            # grab latest item
             last = sample_list[-1]
             return last.counter_volume
         else:
@@ -104,7 +97,6 @@ class SamplesView(View):
             for sample_data in sample_list:
                 current_volume = sample_data.counter_volume
 
-                # if sample is cumulative, substract previous val
                 meter_type = sample_data.counter_type
                 if sample_data.counter_type=="cumulative":
                     current_delta = current_volume - previous
@@ -115,7 +107,6 @@ class SamplesView(View):
                     current_delta = current_volume
                 samples.append([sample_data.timestamp[:19], current_delta])
 
-            # if requested period is too long, interpolate data, for cumulative metrics
             if meter_type=="cumulative":
                 date_start_obj = datetime.strptime(date_from, "%Y-%m-%d %H:%M:%S")
                 date_end_obj = datetime.strptime(date_to, "%Y-%m-%d %H:%M:%S")
@@ -125,15 +116,12 @@ class SamplesView(View):
                     samples = map(to_days, samples)
                     samples = reduce_metrics(samples)
                 elif delta>=30:
-                    # reduce metrics to hours
                     samples = map(to_hours, samples)
                     samples = reduce_metrics(samples)
             else:
-                # add measures of 0 for start and end 
                 samples.append([date_from.replace(" ", "T"), 0])
                 samples.append([date_to.replace(" ", "T"), 0])
 
-        # output csv
         headers = ['date', 'value']
         response = HttpResponse(content_type='text/csv')
         writer = csv.writer(response)
@@ -148,14 +136,12 @@ class ExportView(View):
     def post(self, request, *args, **kwargs):
         data = request.POST.get('svgdata', '')
 
-        # render svg
         doc = xml.dom.minidom.parseString(data.encode( "utf-8" ))
         svg = doc.documentElement
         svgRenderer = SvgRenderer()
         svgRenderer.render(svg)
         drawing = svgRenderer.finish()
 
-        # output to pdf
         pdf = renderPDF.drawToString(drawing)
         response = HttpResponse(content_type='application/pdf')
         response["Content-Disposition"]= "attachment; filename=chart.pdf"

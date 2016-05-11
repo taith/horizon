@@ -7,13 +7,12 @@ from horizon import tabs
 
 from openstack_dashboard.api import ceilometer
 
-from .tables import (DiskUsageTable, NetworkTrafficUsageTable,
-                     CpuUsageTable, NetworkUsageTable)
+from .tables import (DiskUsageTable, NetworkTrafficUsageTable, CpuUsageTable)
 
 
 class DiskUsageTab(tabs.TableTab):
     table_classes = (DiskUsageTable,)
-    name = _("Global Disk Usage")
+    name = _("Disk Usage")
     slug = "global_disk_usage"
     template_name = ("horizon/common/_detail_table.html")
 
@@ -26,7 +25,7 @@ class DiskUsageTab(tabs.TableTab):
 
 class NetworkTrafficUsageTab(tabs.TableTab):
     table_classes = (NetworkTrafficUsageTable,)
-    name = _("Global Network Traffic Usage")
+    name = _("Network Traffic Usage")
     slug = "global_network_traffic_usage"
     template_name = ("horizon/common/_detail_table.html")
 
@@ -36,23 +35,9 @@ class NetworkTrafficUsageTab(tabs.TableTab):
                         key=operator.itemgetter('tenant', 'user'))
         return result
 
-
-class NetworkUsageTab(tabs.TableTab):
-    table_classes = (NetworkUsageTable,)
-    name = _("Global Network Usage")
-    slug = "global_network_usage"
-    template_name = ("horizon/common/_detail_table.html")
-
-    def get_global_network_usage_data(self):
-        request = self.tab_group.request
-        result = sorted(ceilometer.global_network_usage(request),
-                        key=operator.itemgetter('tenant', 'user'))
-        return result
-
-
 class CpuUsageTab(tabs.TableTab):
     table_classes = (CpuUsageTable,)
-    name = _("Global CPU Usage")
+    name = _("CPU Usage")
     slug = "global_cpu_usage"
     template_name = ("horizon/common/_detail_table.html")
 
@@ -64,7 +49,7 @@ class CpuUsageTab(tabs.TableTab):
 
 
 class StatsTab(tabs.Tab):
-    name = _("Stats")
+    name = _("Statistic")
     slug = "stats"
     template_name = ("monitoring/vmcompute/stats.html")
 
@@ -90,8 +75,6 @@ class StatsTab(tabs.Tab):
                          "type": "cumulative"}])
         ]
 
-        # grab different resources for metrics,
-        # and associate with the right type
         meters = ceilometer.meter_list(self.request)
         metersx = ceilometer.Meters(request)
         if not metersx._ceilometer_meter_list:
@@ -99,7 +82,6 @@ class StatsTab(tabs.Tab):
             messages.warning(request, msg)
         resources = {}
         for meter in meters:
-            # group resources by meter names
             if meter.type=='delta' or meter.type=='cumulative':
                 if meter.name not in resources:
                     resources[meter.name] = []
@@ -112,6 +94,6 @@ class StatsTab(tabs.Tab):
 
 class CeilometerOverviewTabs(tabs.TabGroup):
     slug = "ceilometer_overview"
-    tabs = (DiskUsageTab, NetworkTrafficUsageTab, NetworkUsageTab,
+    tabs = (DiskUsageTab, NetworkTrafficUsageTab,
             CpuUsageTab, StatsTab,)
     sticky = True
