@@ -286,12 +286,6 @@ class GlobalCpuUsage(base.APIDictWrapper):
     _attrs = ["tenant", "user", "resource", "cpu", "cpu_util", "vcpus", "memory", "memory_usage"]
 
 
-class GlobalNetworkUsage(base.APIDictWrapper):
-    _attrs = ["tenant", "user", "resource", "network", "network_create",
-              "subnet", "subnet_create", "port", "port_create", "router",
-              "router_create", "ip_floating", "ip_floating_create"]
-
-
 class Statistic(base.APIResourceWrapper):
     """Represents one Ceilometer statistic."""
 
@@ -370,15 +364,6 @@ def global_network_traffic_usage(request):
                                          "network.outgoing.bytes",
                                          "network.outgoing.packets"])
     return [GlobalNetworkTrafficUsage(u) for u in result_list]
-
-
-def global_network_usage(request):
-    result_list = global_usage(request, ["network", "network_create",
-                                         "subnet", "subnet_create",
-                                         "port", "port_create",
-                                         "router", "router_create",
-                                         "ip_floating", "ip_floating_create"])
-    return [GlobalNetworkUsage(u) for u in result_list]
 
 
 def global_usage(request, fields):
