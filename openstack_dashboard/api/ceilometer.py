@@ -264,12 +264,6 @@ class Sample(base.APIResourceWrapper):
         return name or display_name or ""
 
 
-class GlobalObjectStoreUsage(base.APIDictWrapper):
-    _attrs = ["tenant", "user", "resource", "storage_objects",
-              "storage_objects_size", "storage_objects_outgoing_bytes",
-              "storage_objects_incoming_bytes"]
-
-
 class GlobalDiskUsage(base.APIDictWrapper):
     _attrs = ["tenant", "user", "resource", "disk_read_bytes",
               "disk_read_requests", "disk_write_bytes",
@@ -342,14 +336,6 @@ def global_cpu_usage(request):
     return [GlobalCpuUsage(u) for u in result_list]
 
 
-def global_object_store_usage(request):
-    result_list = global_usage(request, ["storage.objects",
-                                         "storage.objects.size",
-                                         "storage.objects.incoming.bytes",
-                                         "storage.objects.outgoing.bytes"])
-    return [GlobalObjectStoreUsage(u) for u in result_list]
-
-
 def global_disk_usage(request):
     result_list = global_usage(request, ["disk.read.bytes",
                                          "disk.read.requests",
@@ -402,8 +388,6 @@ def global_usage(request, fields):
                                     query=get_query(m.user_id,
                                                     m.project_id,
                                                     m.resource_id))
-        # TODO: It seems that there's only one element in statistic list.
-        # TODO: if statistics is []
         statistic = statistics[0]
 
         usage_list.append({"tenant": get_tenant(m.project_id),
@@ -415,19 +399,12 @@ def global_usage(request, fields):
 
 
 def _group_usage(usage_list, fields=[]):
-    """
-    Group usage data of different counters to one object.
-    The usage data in one group have the same resource,
-    user and project.
-    """
     fields = [f.replace(".", "_") for f in fields]
     result = {}
     for s in usage_list:
         key = "%s_%s_%s" % (s['user'], s['tenant'], s['resource'])
         if key not in result:
             result[key] = s
-        # Make sure each object contains the fields that may not
-        # be achived from ceilometer.
         for f in fields:
             result[key].setdefault(f, 0)
         result[key].update({s['counter_name']: s['total']})
