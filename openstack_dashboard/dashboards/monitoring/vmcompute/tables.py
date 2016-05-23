@@ -11,16 +11,10 @@ LOG = logging.getLogger(__name__)
 
 
 class StringWithPlusOperation(str):
-    """Override "+" operation for string object to make."""
     def __init__(self, *args, **kwargs):
         super(StringWithPlusOperation, self).__init__(*args, **kwargs)
 
     def _split_str(self, string):
-        """
-        Split a string to two parts.
-        The first group is the float number and
-        the second one is a string like unit name.
-        """
         result = re.search(r'^([-+]?[0-9]*\.?[0-9]+)(.*)$', string)
         if result:
             number = float(result.groups()[0])
@@ -76,7 +70,6 @@ class StringWithPlusOperation(str):
 
 
 class StringWithPlusOperationForTime(str):
-    """Override "+" operation for string object to make."""
     def __init__(self, *args, **kwargs):
         super(StringWithPlusOperationForTime, self).__init__(*args, **kwargs)
 
