@@ -106,7 +106,6 @@
 		.attr("height", height + margin.top + margin.bottom)
 		.append("g")
 		.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-	// get sample, resource, from and to
 	var sample = $("#meter").val();
 	var resource = $("#resource").val();
 	var from = $("#date_from").val()
@@ -118,7 +117,7 @@
 			function(error,data) {
 				var chart_title = $("#meter").val()+" {% trans "for resource" %} "+$("#resource").val()+" ({% trans "From" %} "+
 					$("#date_from").val()+" {% trans "to" %} "+$("#date_to").val()+")";
-				// read selected option
+				
         			var option = $("#meter option").filter(":selected");
 				var meter_text = "{% trans "Value" %}";
         			if (option)
@@ -142,7 +141,6 @@
 				}
 				else
 				{
-					// show in m/d/Y hh:mm:ss format
 					svg.append("g")
       						.attr("class", "x axis")
       						.attr("transform", "translate(0," + height + ")")
@@ -162,7 +160,6 @@
       					.attr("dy", ".71em")
       					.style("text-anchor", "end")
       					.text(meter_text);
-				// draw line or bar depending on type
 				var current_type = $("#meter").find(":selected").attr("data-type");
 				if (current_type=="cumulative")
 				{
@@ -214,11 +211,9 @@
     function disableOptions()
     {
 	var type = $("#meter").val();
-	// remove all options from select
 	$("#resource").empty();
 	if (type)
 	{
-		// iterate over the depending select, adding the ones with different type
 		for (res in resources[type])
 		{
 			$("#resource").append("<option value='"+resources[type][res]+"'>"+resources[type][res]+"</option>");
@@ -236,7 +231,6 @@
     function setupInitials()
     {
 	refreshPickers(1);
-	// setup chart load first chart
 	parseDate = d3.time.format("%Y-%m-%dT%H:%M:%S").parse;
 	x = d3.time.scale()
 		.range([0, width]);
@@ -287,7 +281,6 @@
         }).on('changeDate', function(ev) {
           $("#date_to").hide();
         }).data('datepicker');
-	// master resources list
         {% for meter_name, resources_by_name in resources.items %}
 		resources["{{meter_name}}"] = new Array();
 		{% for resource in resources_by_name %}

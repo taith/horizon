@@ -368,17 +368,17 @@ def global_usage(request, fields):
         return query
 
     usage_list = []
-    ks_user_list = keystone.user_list(request)
-    ks_tenant_list, more = keystone.tenant_list(request, admin=True)
+    list_user_list = keystone.user_list(request)
+    list_tenant_list, more = keystone.tenant_list(request, admin=True)
 
     def get_user(user_id):
-        for u in ks_user_list:
+        for u in list_user_list:
             if u.id == user_id:
                 return u.name
         return user_id
 
     def get_tenant(tenant_id):
-        for t in ks_tenant_list:
+        for t in list_tenant_list:
             if t.id == tenant_id:
                 return t.name
         return tenant_id
