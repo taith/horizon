@@ -328,7 +328,7 @@ def statistic_list(request, meter_name, query=None, period=None):
 
 
 def global_cpu_usage(request):
-    result_list = global_usage(request, ["cpu",
+    result_list = global_usage_cpu(request, ["cpu",
                                          "cpu_util",
                                          "vcpus",
                                          "memory",
@@ -368,17 +368,61 @@ def global_usage(request, fields):
         return query
 
     usage_list = []
-    ks_user_list = keystone.user_list(request)
-    ks_tenant_list, more = keystone.tenant_list(request, admin=True)
+    list_user_list = keystone.user_list(request)
+    list_tenant_list, more = keystone.tenant_list(request, admin=True)
 
     def get_user(user_id):
-        for u in ks_user_list:
+        for u in list_user_list:
             if u.id == user_id:
                 return u.name
         return user_id
 
     def get_tenant(tenant_id):
-        for t in ks_tenant_list:
+        for t in list_tenant_list:
+            if t.id == tenant_id:
+                return t.name
+        return tenant_id
+
+    for m in filtered:
+        statistics = statistic_list(request, m.name,
+                                    query=get_query(m.user_id,
+                                                    m.project_id,
+                                                    m.resource_id))
+        statistic = statistics[0]
+
+        usage_list.append({"tenant": get_tenant(m.project_id),
+                          "user": get_user(m.user_id),
+                          "total": statistic.sum,
+                          "counter_name": m.name.replace(".", "_"),
+                          "resource": m.resource_id})
+    return _group_usage(usage_list, fields)
+
+def global_usage_cpu(request, fields):
+    meters = meter_list(request)
+
+    filtered = filter(lambda m: m.name in fields, meters)
+
+    def get_query(user, project, resource):
+        query = []
+        if user:
+            query.append({"field": "user", "op": "eq", "value": user})
+        if project:
+            query.append({"field": "project", "op": "eq", "value": project})
+        if resource:
+            query.append({"field": "resource", "op": "eq", "value": resource})
+        return query
+
+    usage_list = []
+    list_user_list = keystone.user_list(request)
+    list_tenant_list, more = keystone.tenant_list(request, admin=True)
+    def get_user(user_id):
+        for u in list_user_list:
+            if u.id == user_id:
+                return u.name
+        return user_id
+
+    def get_tenant(tenant_id):
+        for t in list_tenant_list:
             if t.id == tenant_id:
                 return t.name
         return tenant_id
@@ -396,6 +440,7 @@ def global_usage(request, fields):
                           "counter_name": m.name.replace(".", "_"),
                           "resource": m.resource_id})
     return _group_usage(usage_list, fields)
+
 
 
 def _group_usage(usage_list, fields=[]):
